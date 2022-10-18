@@ -39,4 +39,4 @@ Let's Familiar with the Directory Structure and the Setup
 
 ------------
 
-![Pods Deployment Strategy Design](img/pods-deployment-strategy.png"Pods Deployment Strategy Design")
+!(img/pods-deployment-strategy.png)
