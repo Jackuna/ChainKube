@@ -39,4 +39,6 @@ Let's Familiar with the Directory Structure and the Setup
 
 ------------
 
-!(img/pods-deployment-strategy.png)
+![Pods Deployment Strategy](https://github.com/Jackuna/ChainKube/blob/main/geth/img/pods-deployment-strategy.png)
+
+
