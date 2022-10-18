@@ -1,2 +1,2 @@
-# chainKube
+# ChainKube
 BlockChain on Kubernetes
