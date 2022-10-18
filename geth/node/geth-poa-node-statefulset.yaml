@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+  labels:
+    app: geth-poa-gethnode
+  name: geth-poa-gethnode
+  namespace: blockchain
+spec:
+  replicas: 4
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: geth-poa-gethnode
+      env: dev
+  serviceName: geth-poa-gethnode
+  volumeClaimTemplates:
+  - metadata:
+      name: pv-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: bc-ebs-sc
+      resources:
+        requests:
+          storage: "1Gi"
+      volumeMode: Filesystem
+      finalizers: null
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: geth-poa-gethnode
+        env: dev
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          echo $NODE_KEY > /tmp/secret
+          eth_account=`geth account new --password /tmp/secret --datadir $(DATA_DIR) | grep Public | awk '{print $6}'`
+          pod_ip_with_hyphen=`echo $(POD_IP) | tr . -`
+          pod_dns_name=$pod_ip_with_hyphen.$(POD_NAMESPACE).pod.cluster.local
+          echo $pod_dns_name
+          BOOTNODE_SERVER=`wget -qO - http://geth-poa-bootnode-svc.$(POD_NAMESPACE).svc.cluster.local:8080`
+          geth \
+          --datadir $(DATA_DIR)  \
+          init /poa_blockchain.json
+          geth \
+          --bootnodes $BOOTNODE_SERVER \
+          --networkid 110096 \
+          --datadir $(DATA_DIR) \
+          --port 30301  \
+          --syncmode full \
+          --allow-insecure-unlock \
+          --unlock $eth_account \
+          --password /tmp/secret \
+          --http \
+          --http.addr $(POD_IP) \
+          --http.api admin,debug,eth,net,web3,personal,txpool,clique,miner \
+          --http.port 8545 \
+          --http.vhosts "*" \
+          --http.corsdomain "*" \
+          --verbosity=4
+          # --nat extip:$(POD_IP)
+        env:
+        - name: DATA_DIR
+          value: "/data/gethpoa"
+        - name: NODE_KEY
+          valueFrom:
+            secretKeyRef:
+              key: gethAccountCred
+              name: geth-poa-node5-secret
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: 123456789.dkr.ecr.us-east-1.amazonaws.com/geth:poa-init-node
+        imagePullPolicy: IfNotPresent
+        name: geth-poa-gethnode
+        ports:
+        - containerPort: 30301
+          name: dicoveryudp
+          protocol: UDP
+        - containerPort: 30301
+          name: dicoverytcp
+          protocol: TCP
+        - containerPort: 8545
+          name: jsonrpc
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /data/gethpoa
+          name: pv-data
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30

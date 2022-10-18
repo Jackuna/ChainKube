@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geth-poa-init-node-app
+  namespace: blockchain
+  labels:
+    app: geth-poa-init-node-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels: 
+      app: geth-poa-init-node-app
+      env: dev
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: geth-poa-init-node-app
+        env: dev
+    spec:
+      containers:
+        - image:  123456789.dkr.ecr.us-east-1.amazonaws.com/geth:poa-init-node
+          name:  geth-poa-init-node
+            #imagePullPolicy: IfNotPresent
+          ports:
+            - name:  gethudp
+              containerPort:  30301
+              protocol: UDP
+            - name:  gethtcp
+              containerPort:  30301
+              protocol: TCP
+            - name:  gethrpc
+              containerPort:  8545
+              protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DATA_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: geth-poa-init-node-configmap
+                  key: geth_poa_init_node.datadir
+            - name: BOOTNODE
+              valueFrom:
+                configMapKeyRef:
+                  name: geth-poa-init-node-configmap
+                  key: bootnode
+            - name: NODE_KEY
+              valueFrom:
+                secretKeyRef: 
+                  name: geth-poa-node-secret
+                  key: gethAccountCred
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+          volumeMounts:
+            - name:  geth-poa-gethnode-persistent-storage
+              mountPath:  $(DATA_DIR)
+          command:
+            - sh
+            - -c
+            - |
+                echo $NODE_KEY > /tmp/secret
+                eth_account=0xd611efe7d9c331dc106d831299e0
+                geth \
+                --datadir $(DATA_DIR)  \
+                init /poa_blockchain.json
+                cp -r /init-data/keystore $(DATA_DIR)
+                BOOTNODE_SERVER=`wget -qO - http://geth-poa-bootnode-svc.$(POD_NAMESPACE).svc.cluster.local:8080`
+                geth \
+                --bootnodes $BOOTNODE_SERVER \
+                --mine \
+                --networkid 96 \
+                --datadir $(DATA_DIR) \
+                --port 30301 \
+                --syncmode full \
+                --allow-insecure-unlock \
+                --unlock $eth_account \
+                --password /tmp/secret  \
+                --http \
+                --http.addr="0.0.0.0" \
+                --http.api admin,debug,eth,net,web3,personal,txpool,clique,miner \
+                --http.port 8545 \
+                --verbosity=4 \
+                --nat extip:$(POD_IP)
+      volumes:
+        - name: geth-poa-gethnode-persistent-storage 
+          persistentVolumeClaim:
+            claimName: bc-ebs-claim
