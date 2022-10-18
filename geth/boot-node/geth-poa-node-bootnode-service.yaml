@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: geth-poa-bootnode-svc
+  namespace: blockchain
+spec:
+  selector:
+    app: geth-poa-bootnode
+  #type: NodePort
+  ports:
+  - name: discovery
+    port: 30309
+    protocol: UDP
+  - name: bootnode-server
+    port: 8080
+    protocol: TCP

@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name:  geth-poa-bootnode
+  namespace: blockchain
+  labels:
+    app: geth-poa-bootnode
+spec:
+  replicas: 2
+  selector:
+    matchLabels: 
+      app: geth-poa-bootnode
+      env: dev
+  serviceName: bootnode
+  volumeClaimTemplates:
+  - metadata:
+      name: pv-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: bc-ebs-sc
+      resources:
+        requests:
+          storage: "50M"
+      volumeMode: Filesystem
+      finalizers: null
+  template:
+    metadata:
+      labels:
+        app: geth-poa-bootnode
+        env: dev
+    spec:
+      containers:
+        - name:  geth-poa-bootnode
+          image:  123456789.dkr.ecr.us-east-1.amazonaws.com/geth:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name:  bootnode
+              containerPort:  30309
+              protocol: UDP
+            - name:  boottcp
+              containerPort:  30309
+              protocol: TCP
+          env:
+            - name: NODE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name:  geth-poa-bootnode-secret
+                  key: bootnodeKey
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name:  pv-data
+              mountPath:  /gethpoa/bootnode
+          command:
+            - bootnode 
+            - --nodekeyhex=$(NODE_KEY)
+            - -addr
+            - $(POD_IP):30309
+            - --verbosity
+            - "7"
+            - -netrestrict 
+            - 10.0.0.0/16
+        - name:  bootnode-server
+          image:  ethereum/client-go:alltools-release-1.8
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args:
+          - "-c"
+          - "while [ 1 ]; do echo -e \"HTTP/1.1 200 OK\n\nenode://`bootnode -writeaddress -nodekeyhex=$(NODE_KEY)`@$(POD_IP):30309\" | nc -l -v -p 8080 || break; done;"
+          ports:
+            - name:  bootnode-server
+              containerPort:  8080
+              protocol: TCP
+          env:
+            - name: NODE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name:  geth-poa-bootnode-secret
+                  key: bootnodeKey
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
