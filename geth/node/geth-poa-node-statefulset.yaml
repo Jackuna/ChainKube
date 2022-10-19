@@ -38,6 +38,7 @@ spec:
         - -c
         - |
           echo $NODE_KEY > /tmp/secret
+          rm -rf $(DATA_DIR)/*
           eth_account=`geth account new --password /tmp/secret --datadir $(DATA_DIR) | grep Public | awk '{print $6}'`
           pod_ip_with_hyphen=`echo $(POD_IP) | tr . -`
           pod_dns_name=$pod_ip_with_hyphen.$(POD_NAMESPACE).pod.cluster.local
@@ -45,7 +46,7 @@ spec:
           BOOTNODE_SERVER=`wget -qO - http://geth-poa-bootnode-svc.$(POD_NAMESPACE).svc.cluster.local:8080`
           geth \
           --datadir $(DATA_DIR)  \
-          init /poa_blockchain.json
+          init /corp_int_poa_blockchain.json
           geth \
           --bootnodes $BOOTNODE_SERVER \
           --networkid 110096 \
@@ -65,12 +66,12 @@ spec:
           # --nat extip:$(POD_IP)
         env:
         - name: DATA_DIR
-          value: "/data/gethpoa"
+          value: /data/gethpoa
         - name: NODE_KEY
           valueFrom:
             secretKeyRef:
               key: gethAccountCred
-              name: geth-poa-node5-secret
+              name: geth-poa-node-secret
         - name: POD_IP
           valueFrom:
             fieldRef:
