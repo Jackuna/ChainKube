@@ -20,7 +20,7 @@ spec:
         env: dev
     spec:
       containers:
-        - image:  123456789.dkr.ecr.us-east-1.amazonaws.com/geth:poa-init-node
+        - image:  12345678.dkr.ecr.us-east-1.amazonaws.com/geth:poa-init-node
           name:  geth-poa-init-node
             #imagePullPolicy: IfNotPresent
           ports:
@@ -47,11 +47,11 @@ spec:
                 configMapKeyRef:
                   name: geth-poa-init-node-configmap
                   key: geth_poa_init_node.datadir
-            - name: BOOTNODE
+            - name: INIT_ACCOUNT
               valueFrom:
                 configMapKeyRef:
                   name: geth-poa-init-node-configmap
-                  key: bootnode
+                  key: init_signer_account
             - name: NODE_KEY
               valueFrom:
                 secretKeyRef: 
@@ -64,22 +64,39 @@ spec:
 
           volumeMounts:
             - name:  geth-poa-gethnode-persistent-storage
-              mountPath:  $(DATA_DIR)
+              mountPath: /data/gethpoa/init_node
           command:
             - sh
             - -c
             - |
+                # Configure requirements.
+
                 echo $NODE_KEY > /tmp/secret
-                eth_account=0xd611efe7d9c331dc106d831299e0
+                eth_account=0xd611esomeaccount
+                rm -rf $(DATA_DIR)/*
+
+                # Initialize Blockchain using primary signer account.
+
                 geth \
                 --datadir $(DATA_DIR)  \
-                init /poa_blockchain.json
+                init /corp_int_poa_blockchain.json
+                
+
+                # Copy preconfigure keys
+                
                 cp -r /init-data/keystore $(DATA_DIR)
+                # Grep running bootnode address from cluster
                 BOOTNODE_SERVER=`wget -qO - http://geth-poa-bootnode-svc.$(POD_NAMESPACE).svc.cluster.local:8080`
+                
+
+                # Start blockchain with signer account
+                
+                echo "Bootnode server url - $BOOTNODE_SERVER"
+  
                 geth \
-                --bootnodes $BOOTNODE_SERVER \
                 --mine \
-                --networkid 96 \
+                --bootnodes $BOOTNODE_SERVER \
+                --networkid 110096 \
                 --datadir $(DATA_DIR) \
                 --port 30301 \
                 --syncmode full \
@@ -90,8 +107,8 @@ spec:
                 --http.addr="0.0.0.0" \
                 --http.api admin,debug,eth,net,web3,personal,txpool,clique,miner \
                 --http.port 8545 \
-                --verbosity=4 \
-                --nat extip:$(POD_IP)
+                --verbosity=7 \
+                #--nat extip:$(POD_IP)
       volumes:
         - name: geth-poa-gethnode-persistent-storage 
           persistentVolumeClaim:

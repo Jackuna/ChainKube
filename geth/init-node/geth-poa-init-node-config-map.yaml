@@ -6,7 +6,5 @@ metadata:
   labels:
     app: geth-poa-init-node-app
 data:
-  node1.datadir: /data/gethpoa/node1
-  node2.datadir: /data/gethpoa/node2
-  node3.datadir: /data/gethpoa/node3
+  init_signer_account: 0xd611sameaswritteninsomeaccont
   geth_poa_init_node.datadir: /data/gethpoa/init_node

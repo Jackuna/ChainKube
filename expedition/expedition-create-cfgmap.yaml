@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: expedition-configmap
+  namespace: blockchain
+data:
+  rpc_url_for_k8s_genache: http://genache-rpc-service:8545

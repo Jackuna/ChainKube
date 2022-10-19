@@ -6,7 +6,7 @@ metadata:
   labels:
     app: geth-poa-bootnode
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels: 
       app: geth-poa-bootnode
@@ -20,7 +20,7 @@ spec:
       storageClassName: bc-ebs-sc
       resources:
         requests:
-          storage: "50M"
+          storage: 200Mi
       volumeMode: Filesystem
       finalizers: null
   template:
